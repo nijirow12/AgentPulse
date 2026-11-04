@@ -29,6 +29,13 @@ AgentPulse は、ウィンドウを持たないこうしたエージェントも
 
 <img src="docs/screenshot.png" width="420" alt="AgentPulse のパネル">
 
+「Limits」「実行中」の欄は、ドラッグしてパネルの外に出すと、その欄だけの小さなウィンドウになります。
+たとえば実行中のエージェントだけを、画面の隅に常に出しておけます。
+
+<img src="docs/tear-off.gif" width="640" alt="実行中の欄をドラッグして別ウィンドウにする様子">
+
+画像はアプリの画面部品を架空のデータで描いたものです（ガラスの透け感は再現していません）。
+
 ## 対応しているもの
 
 | 種類 | 対象 |
@@ -137,9 +144,17 @@ open build/AgentPulse.app
 ```
 
 開発用に、パネルの見た目を画像に書き出すこともできます（実行のたびに各 API を 1 回呼びます）。
+`--demo` を付けると、実際のデータの代わりに架空のデータで描きます。
 
 ```bash
 build/AgentPulse.app/Contents/MacOS/AgentPulse --snapshot /tmp/agentpulse.png
+```
+
+README の画像は、次の 2 つで作っています（どちらも架空のデータ、API は呼びません）。
+
+```bash
+build/AgentPulse.app/Contents/MacOS/AgentPulse --snapshot docs/screenshot.png --demo
+build/AgentPulse.app/Contents/MacOS/AgentPulse --demo-gif docs/tear-off.gif
 ```
 
 アプリアイコンは `Resources/AppIcon-source.png` から `swift scripts/make_icon.swift` で

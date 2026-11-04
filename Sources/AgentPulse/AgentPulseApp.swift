@@ -30,23 +30,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { await writeSnapshot(to: path) }
             return
         }
+        if let path = argument(after: "--demo-gif") {
+            Task {
+                GlassRendering.plain = true
+                AppModel.shared.useDemoData()
+                DemoGIF.write(model: .shared, to: path)
+                NSApp.terminate(nil)
+            }
+            return
+        }
         AppModel.shared.start()
         statusBar = StatusBarController(model: .shared)
     }
 
-    /// `AgentPulse --snapshot out.png` renders the main panel with live data and exits,
+    /// `AgentPulse --snapshot out.png [--demo]` renders the main panel (with live data, or
+    /// made-up data for the README with `--demo`) and exits,
     /// so the UI can be checked without opening the menu bar.
-    private var snapshotPath: String? {
+    private var snapshotPath: String? { argument(after: "--snapshot") }
+
+    private func argument(after flag: String) -> String? {
         let arguments = CommandLine.arguments
-        guard let index = arguments.firstIndex(of: "--snapshot"), index + 1 < arguments.count else { return nil }
+        guard let index = arguments.firstIndex(of: flag), index + 1 < arguments.count else { return nil }
         return arguments[index + 1]
     }
 
     private func writeSnapshot(to path: String) async {
         GlassRendering.plain = true
         let model = AppModel.shared
-        await model.refreshActivity()
-        await model.refreshLimits()
+        if CommandLine.arguments.contains("--demo") {
+            model.useDemoData()
+        } else {
+            await model.refreshActivity()
+            await model.refreshLimits()
+        }
         // ImageRenderer cannot draw buttons or glass, so glass is painted plain; the panel sits
         // on a desktop-like backdrop under the menu-bar title, with a torn-off section beside it.
         let menuBar = HStack(spacing: 0) {

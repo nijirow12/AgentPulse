@@ -52,6 +52,36 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// README images: made-up agents and usage, so no real paths, projects or accounts show.
+    func useDemoData() {
+        let now = Date()
+        let hour: TimeInterval = 3_600
+        usages = [
+            ProviderUsage(id: .claude, windows: [
+                UsageWindow(id: "session", label: "セッション", usedPercent: 34, resetsAt: now + 2.4 * hour),
+                UsageWindow(id: "weekly_all", label: "週・全体", usedPercent: 18, resetsAt: now + 110 * hour),
+            ], asOf: now - 20),
+            ProviderUsage(id: .codex, windows: [
+                UsageWindow(id: "primary", label: "5h", usedPercent: 12, resetsAt: now + 3.1 * hour),
+                UsageWindow(id: "secondary", label: "7d", usedPercent: 41, resetsAt: now + 62 * hour),
+            ], asOf: now),
+            ProviderUsage(id: .opencodeGo, windows: [
+                UsageWindow(id: "rolling", label: "5h", usedPercent: 8, resetsAt: now + 4.2 * hour),
+                UsageWindow(id: "weekly", label: "7d", usedPercent: 22, resetsAt: now + 98 * hour),
+                UsageWindow(id: "monthly", label: "月", usedPercent: 11, resetsAt: now + 500 * hour),
+            ], asOf: now, footnote: "OpenCode Console の利用枠（DSH の利用も含む）"),
+        ]
+        sessions = [
+            AgentSession(id: "demo-claude", tool: .claude, cwd: "/Users/you/projects/my-app",
+                         lastUpdate: now - 3, summary: "Bash: npm test", pid: 4211, cpu: 2.3),
+            AgentSession(id: "demo-dsh", tool: .dsh, cwd: "/Users/you/projects/api-server",
+                         lastUpdate: now - 6, summary: "bash: swift build -c release", pid: 3876, cpu: 0.4),
+            AgentSession(id: "demo-codex", tool: .codex, cwd: "/Users/you/projects/website",
+                         lastUpdate: now - 12, summary: "Edit: src/components/Header.tsx", pid: 5120, cpu: 1.1),
+        ]
+        lastRefresh = now
+    }
+
     // MARK: Lifecycle
 
     func start() {
