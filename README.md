@@ -1,4 +1,8 @@
-# AgentPulse
+<p align="center">
+  <img src="Resources/AppIcon.png" width="160" alt="AgentPulse のアイコン">
+</p>
+
+<h1 align="center">AgentPulse</h1>
 
 **画面に出ていないところで動いている AI エージェントまで、メニューバーで見える化する** macOS アプリです。
 あわせて、Claude / Codex / OpenCode Go の使用量もまとめて確認できます。
