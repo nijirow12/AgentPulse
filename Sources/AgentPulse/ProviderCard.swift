@@ -38,16 +38,9 @@ struct ProviderCard: View {
                     .lineLimit(1)
             }
         }
-        .padding(10)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06))
-        )
+        .glassSurface(cornerRadius: 16)
     }
 }
 

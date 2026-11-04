@@ -43,11 +43,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func writeSnapshot(to path: String) async {
+        GlassRendering.plain = true
         let model = AppModel.shared
         await model.refreshActivity()
         await model.refreshLimits()
-        // ImageRenderer cannot draw ScrollView or buttons, so render the cards directly,
-        // under the menu-bar title as it would appear.
+        // ImageRenderer cannot draw ScrollView, buttons or glass, so render the torn-off section
+        // views (glass painted plain) on a desktop-like backdrop, under the menu-bar title.
         let menuBar = HStack(spacing: 0) {
             Image(systemName: "waveform.path.ecg")
             Text(AttributedString(StatusBarController.menuBarTitle(for: model)))
@@ -55,13 +56,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 5))
-        let cards = VStack(alignment: .leading, spacing: 8) {
-            menuBar
-            ForEach(model.visibleUsages) { ProviderCard(usage: $0) }
+        let cards = VStack(alignment: .leading, spacing: 0) {
+            menuBar.padding(14)
+            SectionWindowView(section: .limits)
+            SectionWindowView(section: .running)
         }
-        .padding(12)
-        .frame(width: 420)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .environmentObject(model)
+        .background(LinearGradient(colors: [.indigo.opacity(0.5), .teal.opacity(0.4)], startPoint: .topLeading, endPoint: .bottomTrailing))
         let renderer = ImageRenderer(content: cards)
         renderer.scale = 2
         if let image = renderer.nsImage,
@@ -160,16 +161,26 @@ final class StatusBarController: NSObject {
     }
 
     private func makeSectionWindow(_ section: PanelSection) -> NSPanel {
+        // No frame or background of its own: only the SwiftUI glass shapes show.
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 404, height: 200),
-            styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel],
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 200),
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
-        let host = NSHostingController(rootView: SectionWindowView(section: section).environmentObject(model))
+        let host = NSHostingController(
+            rootView: SectionWindowView(section: section, close: { [weak panel] in panel?.orderOut(nil) })
+                .environmentObject(model)
+        )
         host.sizingOptions = [.preferredContentSize]
+        host.view.wantsLayer = true
+        host.view.layer?.backgroundColor = .clear
         panel.contentViewController = host
         panel.title = section.title
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = false
+        panel.isMovableByWindowBackground = true
         panel.isFloatingPanel = true
         panel.level = .floating
         panel.hidesOnDeactivate = false

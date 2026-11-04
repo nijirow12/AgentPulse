@@ -16,11 +16,13 @@ struct PopoverView: View {
             header
             Divider()
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    LimitsSection(onTearOff: { tearOff(.limits) })
-                    RunningSection(onTearOff: { tearOff(.running) })
+                GlassGroup(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        LimitsSection(onTearOff: { tearOff(.limits) })
+                        RunningSection(onTearOff: { tearOff(.running) })
+                    }
+                    .padding(12)
                 }
-                .padding(12)
             }
             .frame(maxHeight: 520)
             Divider()
@@ -48,13 +50,15 @@ struct PopoverView: View {
                 Image(systemName: "arrow.clockwise")
                     .opacity(model.isRefreshing ? 0.4 : 1)
             }
-            .buttonStyle(.borderless)
+            .glassButtonStyle()
+            .buttonBorderShape(.circle)
             .disabled(model.isRefreshing)
             .help("今すぐ更新")
             Button(action: close) {
                 Image(systemName: "xmark")
             }
-            .buttonStyle(.borderless)
+            .glassButtonStyle()
+            .buttonBorderShape(.circle)
             .keyboardShortcut(.cancelAction)
             .help("閉じる (Esc)")
         }
@@ -67,12 +71,12 @@ struct PopoverView: View {
     private var footer: some View {
         HStack {
             Button("設定…", action: openSettings)
-                .buttonStyle(.borderless)
+                .glassButtonStyle()
             Spacer()
             Button("終了") {
                 NSApp.terminate(nil)
             }
-            .buttonStyle(.borderless)
+            .glassButtonStyle()
         }
         .font(.callout)
         .padding(.horizontal, 12)
@@ -97,10 +101,13 @@ struct LimitsSection: View {
     @EnvironmentObject private var model: AppModel
     /// nil when the section already is its own window.
     var onTearOff: (() -> Void)?
+    var showsHeader = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            TearOffHeader(title: PanelSection.limits.title, onTearOff: onTearOff)
+            if showsHeader {
+                TearOffHeader(title: PanelSection.limits.title, onTearOff: onTearOff)
+            }
             if model.visibleUsages.isEmpty {
                 Text("表示するプロバイダがありません（設定から有効にできます）")
                     .font(.caption)
@@ -119,28 +126,38 @@ struct RunningSection: View {
     @EnvironmentObject private var model: AppModel
     /// nil when the section already is its own window.
     var onTearOff: (() -> Void)?
+    var showsHeader = true
 
     var body: some View {
         // Only agents running right now, matching the menu bar.
         let working = model.workingSessions
         VStack(alignment: .leading, spacing: 8) {
-            TearOffHeader(title: PanelSection.running.title, onTearOff: onTearOff) {
-                Text("\(working.count) 件")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            if showsHeader {
+                TearOffHeader(title: PanelSection.running.title, onTearOff: onTearOff) {
+                    Text("\(working.count) 件")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
-            if working.isEmpty {
-                Text("実行中のエージェントはありません")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                VStack(spacing: 4) {
-                    ForEach(working) { session in
-                        SessionRow(session: session)
+            Group {
+                if working.isEmpty {
+                    Text("実行中のエージェントはありません")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                } else {
+                    VStack(spacing: 2) {
+                        ForEach(working) { session in
+                            SessionRow(session: session)
+                        }
                     }
                 }
             }
+            .padding(6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassSurface(cornerRadius: 16)
         }
         .tearOff(onTearOff)
     }
@@ -187,19 +204,47 @@ extension View {
     }
 }
 
-/// A torn-off section on its own: the content of a small floating window.
+/// A torn-off section on its own: glass cards floating on a fully transparent window,
+/// under a small glass title capsule that moves the window and holds the close button.
 struct SectionWindowView: View {
+    @EnvironmentObject private var model: AppModel
     let section: PanelSection
+    var close: () -> Void = {}
 
     var body: some View {
-        Group {
-            switch section {
-            case .limits: LimitsSection()
-            case .running: RunningSection()
+        GlassGroup(spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Text(section.title)
+                        .font(.subheadline.weight(.semibold))
+                    if section == .running {
+                        Text("\(model.workingSessions.count) 件")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button(action: close) {
+                        Image(systemName: "xmark")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .glassButtonStyle()
+                    .buttonBorderShape(.circle)
+                    .help("閉じる")
+                }
+                .padding(.leading, 14)
+                .padding(.trailing, 6)
+                .padding(.vertical, 6)
+                .glassSurface(cornerRadius: 20)
+                .movesWindow()
+
+                switch section {
+                case .limits: LimitsSection(showsHeader: false)
+                case .running: RunningSection(showsHeader: false)
+                }
             }
+            .padding(14)
         }
-        .padding(12)
-        .frame(width: 380, alignment: .topLeading)
+        .frame(width: 400, alignment: .topLeading)
         .fixedSize(horizontal: false, vertical: true)
     }
 }
