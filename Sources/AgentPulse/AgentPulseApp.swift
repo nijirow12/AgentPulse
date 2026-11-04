@@ -105,16 +105,18 @@ final class GlassPanel: NSPanel {
         hidesOnDeactivate = false
         isReleasedWhenClosed = false
         collectionBehavior.formUnion([.canJoinAllSpaces, .fullScreenAuxiliary])
-        // Liquid Glass hides its vibrant layer while the app is in the background, which turns
-        // the glass dark. These panels float over whatever app is in front, so put it back for
-        // as long as the app is inactive (SwiftUI can rebuild layers on every refresh).
+        // In the background, Liquid Glass switches to an inactive texture: its vibrant layer is
+        // hidden (dark) and the backdrop stops sampling past its edges (flat, fogged). These
+        // panels float over whatever app is in front, so the glass keeps its active texture:
+        // recorded while the app is active, re-applied while it is not.
         let center = NotificationCenter.default
         center.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.startKeepingActiveLook() }
+            MainActor.assumeIsolated { self?.holdActiveLook() }
         }
         center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.stopKeepingActiveLook() }
+            MainActor.assumeIsolated { self?.recordActiveLook() }
         }
+        if NSApp.isActive { recordActiveLook() } else { holdActiveLook() }
         // A drag can leave the window between pixels, which softens its text; snap it back.
         NotificationCenter.default.addObserver(
             forName: NSWindow.didMoveNotification, object: self, queue: .main
@@ -127,35 +129,84 @@ final class GlassPanel: NSPanel {
         }
     }
 
-    private var activeLookTimer: Timer?
+    /// What a glass layer looks like while the app is active.
+    private struct LayerLook {
+        var opacity: Float
+        var marginWidth: Any?
+        var filters: [Any]?
+    }
 
-    private func startKeepingActiveLook() {
-        restoreActiveLook()
-        activeLookTimer?.invalidate()
-        activeLookTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.restoreActiveLook() }
+    private var activeLooks: [ObjectIdentifier: LayerLook] = [:]
+    private var lookTimer: Timer?
+
+    /// While active: note each glass layer's look every 2 s (cards come and go with refreshes).
+    private func recordActiveLook() {
+        restartLookTimer(every: 2) { $0.captureLook() }
+    }
+
+    /// While inactive: put the recorded look back every second, since SwiftUI re-applies the
+    /// inactive texture when it rebuilds layers.
+    private func holdActiveLook() {
+        restartLookTimer(every: 1) { $0.applyLook() }
+    }
+
+    private func restartLookTimer(every interval: TimeInterval, _ tick: @escaping @MainActor @Sendable (GlassPanel) -> Void) {
+        lookTimer?.invalidate()
+        tick(self)
+        lookTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { if let self { tick(self) } }
         }
     }
 
-    private func stopKeepingActiveLook() {
-        activeLookTimer?.invalidate()
-        activeLookTimer = nil
-    }
+    private static let marginKey = "marginWidth"
 
-    /// Shows the glass layers that carry the `vibrantColorMatrix` filter again. Matching on the
-    /// filter name keeps this a no-op if a future macOS draws glass differently.
-    private func restoreActiveLook() {
-        guard isVisible, let root = contentView?.layer else { return }
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
+    /// The glass layers: SwiftUI draws Liquid Glass with backdrop and SDF layers. Matching on
+    /// these keeps all of this a no-op if a future macOS draws glass differently.
+    private func forEachGlassLayer(_ body: (CALayer) -> Void) {
+        guard let root = contentView?.layer else { return }
         func walk(_ layer: CALayer) {
-            if layer.opacity < 1,
-               layer.filters?.contains(where: { String(describing: $0).contains("vibrantColorMatrix") }) == true {
-                layer.opacity = 1
-            }
+            let name = String(describing: type(of: layer))
+            if name.contains("Backdrop") || name.contains("SDF") { body(layer) }
             layer.sublayers?.forEach(walk)
         }
         walk(root)
+    }
+
+    private func captureLook() {
+        guard isVisible, NSApp.isActive else { return }
+        var looks: [ObjectIdentifier: LayerLook] = [:]
+        forEachGlassLayer { layer in
+            looks[ObjectIdentifier(layer)] = LayerLook(
+                opacity: layer.opacity,
+                marginWidth: layer.responds(to: NSSelectorFromString(Self.marginKey)) ? layer.value(forKey: Self.marginKey) : nil,
+                // Copies, so later in-place changes to the layer's filters do not reach the record.
+                filters: layer.filters?.map { ($0 as? NSObject)?.copy() ?? $0 }
+            )
+        }
+        activeLooks = looks
+    }
+
+    private func applyLook() {
+        guard isVisible, !NSApp.isActive else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        forEachGlassLayer { layer in
+            guard let look = activeLooks[ObjectIdentifier(layer)] else {
+                // A layer made since the last record: at least undo the darkening.
+                if layer.opacity < 1, layer.filters?.contains(where: { String(describing: $0).contains("vibrant") }) == true {
+                    layer.opacity = 1
+                }
+                return
+            }
+            if layer.opacity != look.opacity { layer.opacity = look.opacity }
+            if let margin = look.marginWidth,
+               (layer.value(forKey: Self.marginKey) as? NSNumber) != (margin as? NSNumber) {
+                layer.setValue(margin, forKey: Self.marginKey)
+            }
+            if let filters = look.filters {
+                layer.filters = filters.map { ($0 as? NSObject)?.copy() ?? $0 }
+            }
+        }
         CATransaction.commit()
     }
 
