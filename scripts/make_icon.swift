@@ -35,8 +35,9 @@ for y in 0..<height {
         }
     }
 }
-// Trim a few pixels so no dark anti-aliased edge survives.
-let inset = 4
+// Trim well inside the picture: its rounded edge fades into the black backdrop over a
+// few dozen pixels, and any of that left under the mask shows as a dark rim.
+let inset = 32
 let crop = CGRect(
     x: minX + inset, y: minY + inset,
     width: maxX - minX - 2 * inset, height: maxY - minY - 2 * inset
