@@ -13,6 +13,8 @@ public enum SettingsKey {
     public static let glassStyle = "appearance.glassStyle"
     /// 0...0.9: how much solid backing is laid over the glass (0 = most see-through).
     public static let glassDensity = "appearance.glassDensity"
+    /// 0...1: how far the glass layer itself is faded out (0 = full glass, 1 = almost none).
+    public static let glassTransparency = "appearance.glassTransparency"
 
     public static func showKey(for kind: ProviderKind) -> String {
         switch kind {
@@ -32,8 +34,9 @@ public enum SettingsKey {
             showCodex: true,
             showOpenCodeGo: true,
             activityWindowMinutes: 10.0,
-            glassStyle: "regular",
+            glassStyle: "clear",
             glassDensity: 0.0,
+            glassTransparency: 0.4,
         ]
     }
 

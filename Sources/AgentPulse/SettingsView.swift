@@ -14,7 +14,8 @@ struct SettingsView: View {
 
     @AppStorage(SettingsKey.activityWindowMinutes) private var windowMinutes: Double = 10
 
-    @AppStorage(SettingsKey.glassStyle) private var glassStyle = "regular"
+    @AppStorage(SettingsKey.glassStyle) private var glassStyle = "clear"
+    @AppStorage(SettingsKey.glassTransparency) private var glassTransparency = 0.4
     @AppStorage(SettingsKey.glassDensity) private var glassDensity = 0.0
 
     var body: some View {
@@ -25,14 +26,9 @@ struct SettingsView: View {
                     Text("透明").tag("clear")
                 }
                 .pickerStyle(.segmented)
-                HStack {
-                    Text("濃さ")
-                    Slider(value: $glassDensity, in: 0...0.9)
-                    Text("\(Int((glassDensity * 100).rounded()))%")
-                        .monospacedDigit()
-                        .frame(width: 40, alignment: .trailing)
-                }
-                Text("「透明」にするとガラス越しに背景がよく見えます。文字が読みにくいときは「濃さ」を上げてください。変更はすぐ反映されます。")
+                percentSlider("透明度", value: $glassTransparency, in: 0...1)
+                percentSlider("下地の濃さ", value: $glassDensity, in: 0...0.9)
+                Text("「透明度」を上げるとガラスそのものが薄くなり、背景がよく透けます。文字が読みにくいときは「下地の濃さ」を上げてください。変更はすぐ反映されます。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -79,6 +75,16 @@ struct SettingsView: View {
         .onChange(of: showClaude) { model.reloadPreferences() }
         .onChange(of: showCodex) { model.reloadPreferences() }
         .onChange(of: showOpenCodeGo) { model.reloadPreferences() }
+    }
+
+    private func percentSlider(_ title: String, value: Binding<Double>, in range: ClosedRange<Double>) -> some View {
+        HStack {
+            Text(title)
+            Slider(value: value, in: range)
+            Text("\(Int((value.wrappedValue * 100).rounded()))%")
+                .monospacedDigit()
+                .frame(width: 40, alignment: .trailing)
+        }
     }
 
     private func limitField(_ title: String, value: Binding<Double>) -> some View {
