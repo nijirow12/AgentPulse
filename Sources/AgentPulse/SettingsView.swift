@@ -19,6 +19,16 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("外観") {
+                Picker("描画方式", selection: $appearance.renderer) {
+                    Text("安定").tag("stable")
+                    Text("Liquid Glass").tag("liquid")
+                }
+                .pickerStyle(.segmented)
+                Text(appearance.renderer == "stable"
+                     ? "どのアプリを操作していても質感が変わらない、すりガラスで表示します。"
+                     : "macOS の Liquid Glass で表示します。縁の屈折が出ますが、ほかのアプリを操作している間は macOS によって曇った見た目になります。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Picker("ガラスの種類", selection: $appearance.style) {
                     Text("標準").tag("regular")
                     Text("透明").tag("clear")

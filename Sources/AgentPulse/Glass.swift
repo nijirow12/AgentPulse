@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import AgentPulseCore
 
@@ -46,12 +47,14 @@ final class Appearance: ObservableObject {
     @Published var style: String { didSet { defaults.set(style, forKey: SettingsKey.glassStyle) } }
     @Published var transparency: Double { didSet { defaults.set(transparency, forKey: SettingsKey.glassTransparency) } }
     @Published var density: Double { didSet { defaults.set(density, forKey: SettingsKey.glassDensity) } }
+    @Published var renderer: String { didSet { defaults.set(renderer, forKey: SettingsKey.glassRenderer) } }
 
     private init() {
         SettingsKey.register(in: defaults)
         style = defaults.string(forKey: SettingsKey.glassStyle) ?? "clear"
         transparency = defaults.double(forKey: SettingsKey.glassTransparency)
         density = defaults.double(forKey: SettingsKey.glassDensity)
+        renderer = defaults.string(forKey: SettingsKey.glassRenderer) ?? "stable"
     }
 }
 
@@ -85,12 +88,47 @@ struct GlassSurface: ViewModifier {
 
     @ViewBuilder
     private func glass(in shape: RoundedRectangle) -> some View {
-        if #available(macOS 26.0, *) {
+        if appearance.renderer == "stable" {
+            // Liquid Glass fogs and darkens in the window server whenever another app is in
+            // front, which nothing in the app can stop; this material is told to stay active.
+            ActiveMaterial(
+                material: appearance.style == "clear" ? .underWindowBackground : .popover,
+                cornerRadius: cornerRadius
+            )
+        } else if #available(macOS 26.0, *) {
             Color.clear.glassEffect(appearance.style == "clear" ? .clear : .regular, in: shape)
         } else if appearance.style == "clear" {
             shape.fill(.ultraThinMaterial)
         } else {
             shape.fill(.regularMaterial)
         }
+    }
+}
+
+/// A behind-window blur that keeps its active look regardless of which app is in front
+/// (`NSVisualEffectView.state = .active`, the documented way to opt out of the inactive look).
+struct ActiveMaterial: NSViewRepresentable {
+    let material: NSVisualEffectView.Material
+    let cornerRadius: CGFloat
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.blendingMode = .behindWindow
+        view.state = .active
+        view.wantsLayer = true
+        view.layer?.cornerCurve = .continuous
+        view.layer?.masksToBounds = true
+        update(view)
+        return view
+    }
+
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {
+        update(view)
+    }
+
+    private func update(_ view: NSVisualEffectView) {
+        view.material = material
+        view.state = .active
+        view.layer?.cornerRadius = cornerRadius
     }
 }

@@ -15,6 +15,8 @@ public enum SettingsKey {
     public static let glassDensity = "appearance.glassDensity"
     /// 0...1: how far the glass layer itself is faded out (0 = full glass, 1 = almost none).
     public static let glassTransparency = "appearance.glassTransparency"
+    /// "stable" (an always-active material) or "liquid" (SwiftUI Liquid Glass).
+    public static let glassRenderer = "appearance.glassRenderer"
 
     public static func showKey(for kind: ProviderKind) -> String {
         switch kind {
@@ -37,6 +39,7 @@ public enum SettingsKey {
             glassStyle: "clear",
             glassDensity: 0.0,
             glassTransparency: 0.4,
+            glassRenderer: "stable",
         ]
     }
 
