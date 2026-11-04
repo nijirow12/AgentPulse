@@ -14,7 +14,7 @@ struct MainPanelView: View {
     var tearOff: (PanelSection) -> Void = { _ in }
 
     var body: some View {
-        GlassGroup(spacing: 10) {
+        VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
                 header
                 LimitsSection(onTearOff: { tearOff(.limits) })
@@ -219,7 +219,7 @@ struct SectionWindowView: View {
     var close: () -> Void = {}
 
     var body: some View {
-        GlassGroup(spacing: 10) {
+        VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     Text(section.title)

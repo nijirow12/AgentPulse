@@ -35,14 +35,32 @@ extension View {
     }
 }
 
+/// The appearance settings, shared by every window. `@AppStorage` keys with dots in them
+/// (`appearance.glassStyle`) are not observed across views, so a change made in the settings
+/// window never reached the open panels; one published object updates them all at once.
+@MainActor
+final class Appearance: ObservableObject {
+    static let shared = Appearance()
+    private let defaults = UserDefaults.standard
+
+    @Published var style: String { didSet { defaults.set(style, forKey: SettingsKey.glassStyle) } }
+    @Published var transparency: Double { didSet { defaults.set(transparency, forKey: SettingsKey.glassTransparency) } }
+    @Published var density: Double { didSet { defaults.set(density, forKey: SettingsKey.glassDensity) } }
+
+    private init() {
+        SettingsKey.register(in: defaults)
+        style = defaults.string(forKey: SettingsKey.glassStyle) ?? "clear"
+        transparency = defaults.double(forKey: SettingsKey.glassTransparency)
+        density = defaults.double(forKey: SettingsKey.glassDensity)
+    }
+}
+
 /// The glass behind a card, following the appearance settings. The glass is its own layer
 /// under the content, so it can be faded toward fully see-through without fading the text;
 /// a thin light rim keeps the edge reading as glass even when the layer is faint.
 struct GlassSurface: ViewModifier {
     let cornerRadius: CGFloat
-    @AppStorage(SettingsKey.glassStyle) private var style = "clear"
-    @AppStorage(SettingsKey.glassTransparency) private var transparency = 0.4
-    @AppStorage(SettingsKey.glassDensity) private var density = 0.0
+    @ObservedObject private var appearance = Appearance.shared
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -50,8 +68,8 @@ struct GlassSurface: ViewModifier {
             content.background(Color.white.opacity(0.75), in: shape)
         } else {
             content
-                .background(Color(nsColor: .windowBackgroundColor).opacity(density), in: shape)
-                .background { glass(in: shape).opacity(1 - transparency * 0.9) }
+                .background(Color(nsColor: .windowBackgroundColor).opacity(appearance.density), in: shape)
+                .background { glass(in: shape).opacity(1 - appearance.transparency * 0.9) }
                 .overlay {
                     shape.strokeBorder(
                         LinearGradient(
@@ -68,25 +86,11 @@ struct GlassSurface: ViewModifier {
     @ViewBuilder
     private func glass(in shape: RoundedRectangle) -> some View {
         if #available(macOS 26.0, *) {
-            Color.clear.glassEffect(style == "clear" ? .clear : .regular, in: shape)
-        } else if style == "clear" {
+            Color.clear.glassEffect(appearance.style == "clear" ? .clear : .regular, in: shape)
+        } else if appearance.style == "clear" {
             shape.fill(.ultraThinMaterial)
         } else {
             shape.fill(.regularMaterial)
-        }
-    }
-}
-
-/// Groups glass shapes so they render and blend as one layer, as Apple recommends.
-struct GlassGroup<Content: View>: View {
-    var spacing: CGFloat = 8
-    @ViewBuilder var content: Content
-
-    var body: some View {
-        if #available(macOS 26.0, *) {
-            GlassEffectContainer(spacing: spacing) { content }
-        } else {
-            content
         }
     }
 }

@@ -105,6 +105,16 @@ final class GlassPanel: NSPanel {
         hidesOnDeactivate = false
         isReleasedWhenClosed = false
         collectionBehavior.formUnion([.canJoinAllSpaces, .fullScreenAuxiliary])
+        // A drag can leave the window between pixels, which softens its text; snap it back.
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.didMoveNotification, object: self, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let aligned = self.frame.origin.pixelAligned
+                if aligned != self.frame.origin { self.setFrameOrigin(aligned) }
+            }
+        }
     }
 
     func host<Content: View>(_ view: Content) {
@@ -163,7 +173,7 @@ final class StatusBarController: NSObject {
             let size = mainPanel.frame.size
             let visible = (buttonWindow.screen ?? NSScreen.main)?.visibleFrame ?? .zero
             let x = min(max(anchor.midX - size.width / 2, visible.minX + 8), visible.maxX - size.width - 8)
-            mainPanel.setFrameTopLeftPoint(NSPoint(x: x, y: anchor.minY - 6))
+            mainPanel.setFrameTopLeftPoint(NSPoint(x: x, y: anchor.minY - 6).pixelAligned)
         }
         NSApp.activate()
         mainPanel.makeKeyAndOrderFront(nil)
@@ -182,7 +192,7 @@ final class StatusBarController: NSObject {
             return
         }
         let window = existing ?? makeSectionWindow(section)
-        window.setFrameTopLeftPoint(NSPoint(x: mouse.x - 60, y: mouse.y + 12))
+        window.setFrameTopLeftPoint(NSPoint(x: mouse.x - 60, y: mouse.y + 12).pixelAligned)
         if !window.isVisible { window.orderFrontRegardless() }
     }
 
@@ -246,7 +256,7 @@ final class StatusBarController: NSObject {
             return
         }
         let top = min(panel.maxY, screen.maxY)
-        window.setFrameTopLeftPoint(NSPoint(x: x, y: max(top, screen.minY + size.height)))
+        window.setFrameTopLeftPoint(NSPoint(x: x, y: max(top, screen.minY + size.height)).pixelAligned)
     }
 
     private func updateButton() {
@@ -285,4 +295,10 @@ final class StatusBarController: NSObject {
         }
         return title
     }
+}
+
+extension NSPoint {
+    /// Whole points. The cursor and the menu-bar item sit at fractional positions; a window
+    /// placed there is drawn between pixels and its text comes out soft.
+    var pixelAligned: NSPoint { NSPoint(x: x.rounded(), y: y.rounded()) }
 }

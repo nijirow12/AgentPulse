@@ -14,20 +14,18 @@ struct SettingsView: View {
 
     @AppStorage(SettingsKey.activityWindowMinutes) private var windowMinutes: Double = 10
 
-    @AppStorage(SettingsKey.glassStyle) private var glassStyle = "clear"
-    @AppStorage(SettingsKey.glassTransparency) private var glassTransparency = 0.4
-    @AppStorage(SettingsKey.glassDensity) private var glassDensity = 0.0
+    @ObservedObject private var appearance = Appearance.shared
 
     var body: some View {
         Form {
             Section("外観") {
-                Picker("ガラスの種類", selection: $glassStyle) {
+                Picker("ガラスの種類", selection: $appearance.style) {
                     Text("標準").tag("regular")
                     Text("透明").tag("clear")
                 }
                 .pickerStyle(.segmented)
-                percentSlider("透明度", value: $glassTransparency, in: 0...1)
-                percentSlider("下地の濃さ", value: $glassDensity, in: 0...0.9)
+                percentSlider("透明度", value: $appearance.transparency, in: 0...1)
+                percentSlider("下地の濃さ", value: $appearance.density, in: 0...0.9)
                 Text("「透明度」を上げるとガラスそのものが薄くなり、背景がよく透けます。文字が読みにくいときは「下地の濃さ」を上げてください。変更はすぐ反映されます。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
