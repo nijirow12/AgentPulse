@@ -213,7 +213,8 @@ final class StatusBarController: NSObject {
                 rootView: SettingsView().environmentObject(model)
             ))
             window.title = "AgentPulse 設定"
-            window.styleMask = [.titled, .closable]
+            window.styleMask = [.titled, .closable, .resizable]
+            window.setContentSize(NSSize(width: 440, height: 600))
             window.isReleasedWhenClosed = false
             window.center()
             settingsWindow = window
