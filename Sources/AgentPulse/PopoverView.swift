@@ -111,6 +111,7 @@ struct LimitsSection: View {
                 }
             }
         }
+        .tearOff(onTearOff)
     }
 }
 
@@ -141,10 +142,11 @@ struct RunningSection: View {
                 }
             }
         }
+        .tearOff(onTearOff)
     }
 }
 
-/// Section title that, inside the popover, can be dragged out to open the section on its own.
+/// Section title; inside the popover it shows a mark saying the section can be dragged out.
 struct TearOffHeader<Trailing: View>: View {
     let title: String
     let onTearOff: (() -> Void)?
@@ -157,7 +159,7 @@ struct TearOffHeader<Trailing: View>: View {
     }
 
     var body: some View {
-        let row = HStack(spacing: 6) {
+        HStack(spacing: 6) {
             SectionHeader(title: title)
             Spacer()
             trailing
@@ -165,19 +167,22 @@ struct TearOffHeader<Trailing: View>: View {
                 Image(systemName: "rectangle.portrait.on.rectangle.portrait")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
+                    .help("この欄をドラッグしてパネルの外に出すと、別ウィンドウで表示します")
             }
         }
-        .contentShape(Rectangle())
+    }
+}
 
+extension View {
+    /// Inside the popover, dragging anywhere on the section (header, cards, rows) tears it off
+    /// into its own window. Clicks still reach the rows, since a drag needs 6pt of movement.
+    @ViewBuilder
+    func tearOff(_ onTearOff: (() -> Void)?) -> some View {
         if let onTearOff {
-            row
-                .gesture(
-                    DragGesture(minimumDistance: 6)
-                        .onChanged { _ in onTearOff() }
-                )
-                .help("ドラッグしてパネルの外に出すと、この欄だけを別ウィンドウで表示します")
+            contentShape(Rectangle())
+                .gesture(DragGesture(minimumDistance: 6).onChanged { _ in onTearOff() })
         } else {
-            row
+            self
         }
     }
 }
