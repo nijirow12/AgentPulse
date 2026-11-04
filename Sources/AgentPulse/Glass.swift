@@ -1,4 +1,5 @@
 import SwiftUI
+import AgentPulseCore
 
 /// `--snapshot` renders offscreen, where glass and materials draw nothing; it switches this on
 /// to paint plain translucent shapes instead so the layout still shows.
@@ -10,16 +11,8 @@ enum GlassRendering {
 /// Liquid Glass on macOS 26 and later; a translucent material on older systems.
 @MainActor
 extension View {
-    @ViewBuilder
     func glassSurface(cornerRadius: CGFloat = 16) -> some View {
-        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        if GlassRendering.plain {
-            background(Color.white.opacity(0.75), in: shape)
-        } else if #available(macOS 26.0, *) {
-            glassEffect(.regular, in: shape)
-        } else {
-            background(.ultraThinMaterial, in: shape)
-        }
+        modifier(GlassSurface(cornerRadius: cornerRadius))
     }
 
     @ViewBuilder
@@ -38,6 +31,28 @@ extension View {
             gesture(WindowDragGesture())
         } else {
             self
+        }
+    }
+}
+
+/// The glass behind a card, following the appearance settings: the glass variant, and how
+/// much solid backing is laid over it (more backing reads better on busy wallpapers).
+struct GlassSurface: ViewModifier {
+    let cornerRadius: CGFloat
+    @AppStorage(SettingsKey.glassStyle) private var style = "regular"
+    @AppStorage(SettingsKey.glassDensity) private var density = 0.0
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        let backed = content.background(Color(nsColor: .windowBackgroundColor).opacity(density), in: shape)
+        if GlassRendering.plain {
+            content.background(Color.white.opacity(0.75), in: shape)
+        } else if #available(macOS 26.0, *) {
+            backed.glassEffect(style == "clear" ? .clear : .regular, in: shape)
+        } else if style == "clear" {
+            backed.background(.ultraThinMaterial, in: shape)
+        } else {
+            backed.background(.regularMaterial, in: shape)
         }
     }
 }

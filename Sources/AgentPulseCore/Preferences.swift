@@ -9,6 +9,10 @@ public enum SettingsKey {
     public static let showCodex = "provider.show.codex"
     public static let showOpenCodeGo = "provider.show.opencodeGo"
     public static let activityWindowMinutes = "activity.windowMinutes"
+    /// "regular" or "clear" Liquid Glass.
+    public static let glassStyle = "appearance.glassStyle"
+    /// 0...0.9: how much solid backing is laid over the glass (0 = most see-through).
+    public static let glassDensity = "appearance.glassDensity"
 
     public static func showKey(for kind: ProviderKind) -> String {
         switch kind {
@@ -28,6 +32,8 @@ public enum SettingsKey {
             showCodex: true,
             showOpenCodeGo: true,
             activityWindowMinutes: 10.0,
+            glassStyle: "regular",
+            glassDensity: 0.0,
         ]
     }
 

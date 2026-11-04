@@ -14,8 +14,29 @@ struct SettingsView: View {
 
     @AppStorage(SettingsKey.activityWindowMinutes) private var windowMinutes: Double = 10
 
+    @AppStorage(SettingsKey.glassStyle) private var glassStyle = "regular"
+    @AppStorage(SettingsKey.glassDensity) private var glassDensity = 0.0
+
     var body: some View {
         Form {
+            Section("外観") {
+                Picker("ガラスの種類", selection: $glassStyle) {
+                    Text("標準").tag("regular")
+                    Text("透明").tag("clear")
+                }
+                .pickerStyle(.segmented)
+                HStack {
+                    Text("濃さ")
+                    Slider(value: $glassDensity, in: 0...0.9)
+                    Text("\(Int((glassDensity * 100).rounded()))%")
+                        .monospacedDigit()
+                        .frame(width: 40, alignment: .trailing)
+                }
+                Text("「透明」にするとガラス越しに背景がよく見えます。文字が読みにくいときは「濃さ」を上げてください。変更はすぐ反映されます。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("OpenCode Go の上限（USD）") {
                 limitField("5 時間", value: $fiveHourLimit)
                 limitField("7 日", value: $weeklyLimit)

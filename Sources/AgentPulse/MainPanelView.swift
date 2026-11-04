@@ -2,36 +2,30 @@ import AppKit
 import SwiftUI
 import AgentPulseCore
 
-struct PopoverView: View {
+/// The main window: glass pieces floating on a transparent, frameless panel (the same look as
+/// a torn-off section). Dragging the title capsule moves it.
+struct MainPanelView: View {
     @EnvironmentObject private var model: AppModel
     /// Opens the settings window (owned by the status-bar controller).
     var openSettings: () -> Void = {}
-    /// Closes the popover; it otherwise stays open while other apps are used.
+    /// Closes the panel; it otherwise stays open while other apps are used.
     var close: () -> Void = {}
-    /// Called while a section header is dragged; tears that section off into its own window.
+    /// Called while a section is dragged; tears that section off into its own window.
     var tearOff: (PanelSection) -> Void = { _ in }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            Divider()
-            ScrollView {
-                GlassGroup(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        LimitsSection(onTearOff: { tearOff(.limits) })
-                        RunningSection(onTearOff: { tearOff(.running) })
-                    }
-                    .padding(12)
-                }
+        GlassGroup(spacing: 10) {
+            VStack(alignment: .leading, spacing: 10) {
+                header
+                LimitsSection(onTearOff: { tearOff(.limits) })
+                RunningSection(onTearOff: { tearOff(.running) })
+                footer
             }
-            .frame(maxHeight: 520)
-            Divider()
-            footer
+            .padding(14)
         }
-        .frame(width: 420)
+        .frame(width: 440, alignment: .topLeading)
+        .fixedSize(horizontal: false, vertical: true)
     }
-
-    // MARK: Header
 
     private var header: some View {
         HStack(spacing: 8) {
@@ -62,11 +56,12 @@ struct PopoverView: View {
             .keyboardShortcut(.cancelAction)
             .help("閉じる (Esc)")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.leading, 14)
+        .padding(.trailing, 6)
+        .padding(.vertical, 6)
+        .glassSurface(cornerRadius: 22)
+        .movesWindow()
     }
-
-    // MARK: Footer
 
     private var footer: some View {
         HStack {
@@ -79,12 +74,10 @@ struct PopoverView: View {
             .glassButtonStyle()
         }
         .font(.callout)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
     }
 }
 
-/// The two parts of the popover that can be dragged out into their own small window.
+/// The two parts of the main window that can be dragged out into their own small window.
 enum PanelSection: String, CaseIterable {
     case limits
     case running
@@ -147,12 +140,14 @@ struct RunningSection: View {
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 4)
-                } else {
-                    VStack(spacing: 2) {
-                        ForEach(working) { session in
-                            SessionRow(session: session)
-                        }
+                } else if working.count > 6 {
+                    // Keep the window on screen when many agents run at once.
+                    ScrollView {
+                        rows(working)
                     }
+                    .frame(height: 300)
+                } else {
+                    rows(working)
                 }
             }
             .padding(6)
@@ -161,9 +156,17 @@ struct RunningSection: View {
         }
         .tearOff(onTearOff)
     }
+
+    private func rows(_ working: [AgentSession]) -> some View {
+        VStack(spacing: 2) {
+            ForEach(working) { session in
+                SessionRow(session: session)
+            }
+        }
+    }
 }
 
-/// Section title; inside the popover it shows a mark saying the section can be dragged out.
+/// Section title; inside the main window it shows a mark saying the section can be dragged out.
 struct TearOffHeader<Trailing: View>: View {
     let title: String
     let onTearOff: (() -> Void)?
@@ -184,14 +187,18 @@ struct TearOffHeader<Trailing: View>: View {
                 Image(systemName: "rectangle.portrait.on.rectangle.portrait")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
-                    .help("この欄をドラッグしてパネルの外に出すと、別ウィンドウで表示します")
+                    .help("この欄をドラッグしてウィンドウの外に出すと、別ウィンドウで表示します")
             }
         }
+        // Floating on a transparent window, the title needs its own glass to stay readable.
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .glassSurface(cornerRadius: 16)
     }
 }
 
 extension View {
-    /// Inside the popover, dragging anywhere on the section (header, cards, rows) tears it off
+    /// Inside the main window, dragging anywhere on the section (header, cards, rows) tears it off
     /// into its own window. Clicks still reach the rows, since a drag needs 6pt of movement.
     @ViewBuilder
     func tearOff(_ onTearOff: (() -> Void)?) -> some View {

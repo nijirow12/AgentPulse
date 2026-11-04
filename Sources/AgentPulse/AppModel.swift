@@ -5,7 +5,7 @@ import AgentPulseCore
 /// Owns the periodic collection loops and publishes the results to the UI.
 @MainActor
 final class AppModel: ObservableObject {
-    /// The app is a single menu-bar popover, so one shared instance keeps the loops alive.
+    /// The app is a single menu-bar panel, so one shared instance keeps the loops alive.
     static let shared = AppModel()
 
     @Published private(set) var usages: [ProviderUsage] = []
