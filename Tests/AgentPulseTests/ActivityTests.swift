@@ -194,9 +194,13 @@ final class WorkingSessionTests: XCTestCase {
         let quiet = AgentSession(id: "b", tool: .claude, lastUpdate: now.addingTimeInterval(-120), summary: "")
         let quietButBusy = AgentSession(id: "c", tool: .codex, lastUpdate: now.addingTimeInterval(-120), summary: "", pid: 1, cpu: 40)
         let idleHelper = AgentSession(id: "d", tool: .codex, lastUpdate: now, summary: "", pid: 2, cpu: 0.2, isProcessOnly: true)
+        let busyWithoutLog = AgentSession(id: "e", tool: .claude, lastUpdate: now, summary: "", pid: 3, cpu: 5.8, isProcessOnly: true)
+        let longQuiet = AgentSession(id: "f", tool: .claude, lastUpdate: now.addingTimeInterval(-900), summary: "", pid: 4, cpu: 40)
         XCTAssertTrue(fresh.isWorking(now: now))
         XCTAssertFalse(quiet.isWorking(now: now))
         XCTAssertTrue(quietButBusy.isWorking(now: now))
         XCTAssertFalse(idleHelper.isWorking(now: now))
+        XCTAssertFalse(busyWithoutLog.isWorking(now: now), "a log-less process is never shown as working")
+        XCTAssertFalse(longQuiet.isWorking(now: now), "a log quiet for over 10 minutes is not working")
     }
 }

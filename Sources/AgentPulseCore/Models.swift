@@ -139,10 +139,14 @@ public struct AgentSession: Identifiable, Sendable {
     /// A process-only row that is not using the CPU is idle, not working.
     public var isIdleProcess: Bool { isProcessOnly && (cpu ?? 0) < 1 }
 
-    /// Doing something right now: its log moved in the last 30 seconds, or its process is
-    /// using the CPU (e.g. a long build where the log stays quiet).
+    /// Doing something right now: its log moved in the last 30 seconds, or its process is busy
+    /// while the log has been quiet for under 10 minutes (e.g. waiting on a long build).
+    /// A process with no log never counts: idle IDE agents use a few % CPU on housekeeping,
+    /// which would otherwise show the same session twice.
     public func isWorking(now: Date = Date()) -> Bool {
-        if pid != nil, (cpu ?? 0) >= 1 { return true }
-        return !isProcessOnly && now.timeIntervalSince(lastUpdate) <= 30
+        if isProcessOnly { return false }
+        let age = now.timeIntervalSince(lastUpdate)
+        if age <= 30 { return true }
+        return pid != nil && (cpu ?? 0) >= 1 && age <= 600
     }
 }
