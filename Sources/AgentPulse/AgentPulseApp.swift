@@ -99,6 +99,8 @@ final class StatusBarController: NSObject {
         // Stays open while other apps are used; only the menu-bar icon, × or Esc close it.
         popover.behavior = .applicationDefined
         popover.animates = false
+        // Dragging the popover tears it off the menu bar into a window that can be moved anywhere.
+        popover.delegate = self
         popover.contentViewController = NSHostingController(
             rootView: PopoverView(
                 openSettings: { [weak self] in self?.showSettings() },
@@ -125,13 +127,16 @@ final class StatusBarController: NSObject {
         guard let button = statusItem.button, !popover.isShown else { return }
         NSApp.activate()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        if let window = popover.contentViewController?.view.window {
-            // Keep it above other apps' windows and on every Space until closed.
-            window.level = .floating
-            window.hidesOnDeactivate = false
-            window.collectionBehavior.formUnion([.canJoinAllSpaces, .fullScreenAuxiliary])
-            window.makeKey()
-        }
+        keepOnTop()
+        popover.contentViewController?.view.window?.makeKey()
+    }
+
+    /// Keep the popover (attached or torn off) above other apps' windows and on every Space.
+    private func keepOnTop() {
+        guard let window = popover.contentViewController?.view.window else { return }
+        window.level = .floating
+        window.hidesOnDeactivate = false
+        window.collectionBehavior.formUnion([.canJoinAllSpaces, .fullScreenAuxiliary])
     }
 
     func closePopover() {
@@ -197,5 +202,13 @@ final class StatusBarController: NSObject {
             ))
         }
         return title
+    }
+}
+
+extension StatusBarController: NSPopoverDelegate {
+    func popoverShouldDetach(_ popover: NSPopover) -> Bool { true }
+
+    func popoverDidDetach(_ popover: NSPopover) {
+        keepOnTop()
     }
 }
