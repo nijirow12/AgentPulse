@@ -105,6 +105,16 @@ final class GlassPanel: NSPanel {
         hidesOnDeactivate = false
         isReleasedWhenClosed = false
         collectionBehavior.formUnion([.canJoinAllSpaces, .fullScreenAuxiliary])
+        // Liquid Glass hides its vibrant layer while the app is in the background, which turns
+        // the glass dark. These panels float over whatever app is in front, so put it back for
+        // as long as the app is inactive (SwiftUI can rebuild layers on every refresh).
+        let center = NotificationCenter.default
+        center.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.startKeepingActiveLook() }
+        }
+        center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.stopKeepingActiveLook() }
+        }
         // A drag can leave the window between pixels, which softens its text; snap it back.
         NotificationCenter.default.addObserver(
             forName: NSWindow.didMoveNotification, object: self, queue: .main
@@ -117,8 +127,42 @@ final class GlassPanel: NSPanel {
         }
     }
 
+    private var activeLookTimer: Timer?
+
+    private func startKeepingActiveLook() {
+        restoreActiveLook()
+        activeLookTimer?.invalidate()
+        activeLookTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.restoreActiveLook() }
+        }
+    }
+
+    private func stopKeepingActiveLook() {
+        activeLookTimer?.invalidate()
+        activeLookTimer = nil
+    }
+
+    /// Shows the glass layers that carry the `vibrantColorMatrix` filter again. Matching on the
+    /// filter name keeps this a no-op if a future macOS draws glass differently.
+    private func restoreActiveLook() {
+        guard isVisible, let root = contentView?.layer else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        func walk(_ layer: CALayer) {
+            if layer.opacity < 1,
+               layer.filters?.contains(where: { String(describing: $0).contains("vibrantColorMatrix") }) == true {
+                layer.opacity = 1
+            }
+            layer.sublayers?.forEach(walk)
+        }
+        walk(root)
+        CATransaction.commit()
+    }
+
     func host<Content: View>(_ view: Content) {
-        let host = NSHostingController(rootView: view)
+        // These panels float over other apps, so they must not take on the inactive look (the
+        // glass loses its vibrant layer and turns dark) whenever another app is in front.
+        let host = NSHostingController(rootView: view.environment(\.controlActiveState, .key))
         host.sizingOptions = [.preferredContentSize]
         host.view.wantsLayer = true
         host.view.layer?.backgroundColor = .clear
