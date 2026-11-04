@@ -70,9 +70,9 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        // A grouped Form scrolls and has no height of its own; without one the window
-        // opened as a bare title bar.
-        .frame(minWidth: 440, idealWidth: 440, minHeight: 420, idealHeight: 600)
+        // A grouped Form scrolls and has no height of its own: give it a minimum (without one
+        // the window opened as a bare title bar) and let it fill the window when resized.
+        .frame(minWidth: 400, maxWidth: .infinity, minHeight: 360, maxHeight: .infinity)
         .onChange(of: fiveHourLimit) { refreshLimits() }
         .onChange(of: weeklyLimit) { refreshLimits() }
         .onChange(of: monthlyLimit) { refreshLimits() }

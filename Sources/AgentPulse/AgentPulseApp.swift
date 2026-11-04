@@ -206,21 +206,47 @@ final class StatusBarController: NSObject {
         }
     }
 
+    /// Opens settings next to the main panel (which stays open) so appearance changes can be
+    /// watched while they are made. It floats like the panels, so other apps do not cover it.
     private func showSettings() {
-        closePanel()
         if settingsWindow == nil {
-            let window = NSWindow(contentViewController: NSHostingController(
-                rootView: SettingsView().environmentObject(model)
-            ))
+            let host = NSHostingController(rootView: SettingsView().environmentObject(model))
+            // The window decides the size; the form just fills it.
+            host.sizingOptions = []
+            let window = NSWindow(contentViewController: host)
             window.title = "AgentPulse 設定"
             window.styleMask = [.titled, .closable, .resizable]
             window.setContentSize(NSSize(width: 440, height: 600))
+            window.contentMinSize = NSSize(width: 400, height: 360)
+            window.level = .floating
+            window.hidesOnDeactivate = false
             window.isReleasedWhenClosed = false
-            window.center()
+            window.collectionBehavior.formUnion([.canJoinAllSpaces, .fullScreenAuxiliary])
             settingsWindow = window
         }
+        guard let window = settingsWindow else { return }
+        if !window.isVisible { placeSettings(window) }
         NSApp.activate()
-        settingsWindow?.makeKeyAndOrderFront(nil)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    /// Left of the main panel, top-aligned; to its right when there is no room; else centred.
+    private func placeSettings(_ window: NSWindow) {
+        guard mainPanel.isVisible, let screen = mainPanel.screen?.visibleFrame else {
+            window.center()
+            return
+        }
+        let panel = mainPanel.frame
+        let size = window.frame.size
+        let gap: CGFloat = 12
+        var x = panel.minX - gap - size.width
+        if x < screen.minX + 8 { x = panel.maxX + gap }
+        if x + size.width > screen.maxX - 8 {
+            window.center()
+            return
+        }
+        let top = min(panel.maxY, screen.maxY)
+        window.setFrameTopLeftPoint(NSPoint(x: x, y: max(top, screen.minY + size.height)))
     }
 
     private func updateButton() {
