@@ -8,6 +8,8 @@ struct PopoverView: View {
     var openSettings: () -> Void = {}
     /// Closes the popover; it otherwise stays open while other apps are used.
     var close: () -> Void = {}
+    /// Called while a section header is dragged; tears that section off into its own window.
+    var tearOff: (PanelSection) -> Void = { _ in }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -15,8 +17,8 @@ struct PopoverView: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    limitsSection
-                    activitySection
+                    LimitsSection(onTearOff: { tearOff(.limits) })
+                    RunningSection(onTearOff: { tearOff(.running) })
                 }
                 .padding(12)
             }
@@ -60,11 +62,45 @@ struct PopoverView: View {
         .padding(.vertical, 10)
     }
 
-    // MARK: Limits
+    // MARK: Footer
 
-    private var limitsSection: some View {
+    private var footer: some View {
+        HStack {
+            Button("設定…", action: openSettings)
+                .buttonStyle(.borderless)
+            Spacer()
+            Button("終了") {
+                NSApp.terminate(nil)
+            }
+            .buttonStyle(.borderless)
+        }
+        .font(.callout)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+}
+
+/// The two parts of the popover that can be dragged out into their own small window.
+enum PanelSection: String, CaseIterable {
+    case limits
+    case running
+
+    var title: String {
+        switch self {
+        case .limits: "Limits"
+        case .running: "実行中"
+        }
+    }
+}
+
+struct LimitsSection: View {
+    @EnvironmentObject private var model: AppModel
+    /// nil when the section already is its own window.
+    var onTearOff: (() -> Void)?
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionHeader(title: "Limits")
+            TearOffHeader(title: PanelSection.limits.title, onTearOff: onTearOff)
             if model.visibleUsages.isEmpty {
                 Text("表示するプロバイダがありません（設定から有効にできます）")
                     .font(.caption)
@@ -76,16 +112,18 @@ struct PopoverView: View {
             }
         }
     }
+}
 
-    // MARK: Activity
+struct RunningSection: View {
+    @EnvironmentObject private var model: AppModel
+    /// nil when the section already is its own window.
+    var onTearOff: (() -> Void)?
 
-    private var activitySection: some View {
+    var body: some View {
         // Only agents running right now, matching the menu bar.
         let working = model.workingSessions
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                SectionHeader(title: "実行中")
-                Spacer()
+        VStack(alignment: .leading, spacing: 8) {
+            TearOffHeader(title: PanelSection.running.title, onTearOff: onTearOff) {
                 Text("\(working.count) 件")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -104,22 +142,60 @@ struct PopoverView: View {
             }
         }
     }
+}
 
-    // MARK: Footer
+/// Section title that, inside the popover, can be dragged out to open the section on its own.
+struct TearOffHeader<Trailing: View>: View {
+    let title: String
+    let onTearOff: (() -> Void)?
+    @ViewBuilder var trailing: Trailing
 
-    private var footer: some View {
-        HStack {
-            Button("設定…", action: openSettings)
-                .buttonStyle(.borderless)
+    init(title: String, onTearOff: (() -> Void)?, @ViewBuilder trailing: () -> Trailing = { EmptyView() }) {
+        self.title = title
+        self.onTearOff = onTearOff
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        let row = HStack(spacing: 6) {
+            SectionHeader(title: title)
             Spacer()
-            Button("終了") {
-                NSApp.terminate(nil)
+            trailing
+            if onTearOff != nil {
+                Image(systemName: "rectangle.portrait.on.rectangle.portrait")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
-            .buttonStyle(.borderless)
         }
-        .font(.callout)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+
+        if let onTearOff {
+            row
+                .gesture(
+                    DragGesture(minimumDistance: 6)
+                        .onChanged { _ in onTearOff() }
+                )
+                .help("ドラッグしてパネルの外に出すと、この欄だけを別ウィンドウで表示します")
+        } else {
+            row
+        }
+    }
+}
+
+/// A torn-off section on its own: the content of a small floating window.
+struct SectionWindowView: View {
+    let section: PanelSection
+
+    var body: some View {
+        Group {
+            switch section {
+            case .limits: LimitsSection()
+            case .running: RunningSection()
+            }
+        }
+        .padding(12)
+        .frame(width: 380, alignment: .topLeading)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 

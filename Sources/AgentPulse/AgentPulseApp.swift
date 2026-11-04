@@ -90,6 +90,7 @@ final class StatusBarController: NSObject {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popover = NSPopover()
     private var settingsWindow: NSWindow?
+    private var sectionWindows: [PanelSection: NSPanel] = [:]
     private var subscription: AnyCancellable?
 
     init(model: AppModel) {
@@ -104,7 +105,8 @@ final class StatusBarController: NSObject {
         popover.contentViewController = NSHostingController(
             rootView: PopoverView(
                 openSettings: { [weak self] in self?.showSettings() },
-                close: { [weak self] in self?.closePopover() }
+                close: { [weak self] in self?.closePopover() },
+                tearOff: { [weak self] in self?.dragSection($0) }
             )
             .environmentObject(model)
         )
@@ -141,6 +143,41 @@ final class StatusBarController: NSObject {
 
     func closePopover() {
         popover.performClose(nil)
+    }
+
+    /// Follows a section-header drag: once the cursor leaves the popover, that section's own
+    /// small window appears under the cursor and moves with it; where the drag ends, it stays.
+    func dragSection(_ section: PanelSection) {
+        let mouse = NSEvent.mouseLocation
+        let existing = sectionWindows[section]
+        if existing?.isVisible != true,
+           popover.contentViewController?.view.window?.frame.contains(mouse) == true {
+            return
+        }
+        let window = existing ?? makeSectionWindow(section)
+        window.setFrameTopLeftPoint(NSPoint(x: mouse.x - 60, y: mouse.y + 12))
+        if !window.isVisible { window.orderFrontRegardless() }
+    }
+
+    private func makeSectionWindow(_ section: PanelSection) -> NSPanel {
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 404, height: 200),
+            styleMask: [.titled, .closable, .utilityWindow, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        let host = NSHostingController(rootView: SectionWindowView(section: section).environmentObject(model))
+        host.sizingOptions = [.preferredContentSize]
+        panel.contentViewController = host
+        panel.title = section.title
+        panel.isFloatingPanel = true
+        panel.level = .floating
+        panel.hidesOnDeactivate = false
+        panel.isReleasedWhenClosed = false
+        panel.becomesKeyOnlyIfNeeded = true
+        panel.collectionBehavior.formUnion([.canJoinAllSpaces, .fullScreenAuxiliary])
+        sectionWindows[section] = panel
+        return panel
     }
 
     @objc private func togglePopover() {
