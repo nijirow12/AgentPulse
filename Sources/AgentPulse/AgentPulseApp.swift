@@ -41,6 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         AppModel.shared.start()
         statusBar = StatusBarController(model: .shared)
+        LoginItem.shared.syncWithPreference()
     }
 
     /// `AgentPulse --snapshot out.png [--demo]` renders the main panel (with live data, or

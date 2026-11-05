@@ -72,7 +72,7 @@ Open it from the right-click menu, or allow it with:
 xattr -dr com.apple.quarantine /Applications/AgentPulse.app
 ```
 
-To start it at login, add it in System Settings → General → Login Items.
+To open it at login, turn on **Settings… → Startup → Open at login**.
 
 ### Usage
 
@@ -202,7 +202,7 @@ AgentPulse は Apple の公証（notarization）を受けていないため、�
 xattr -dr com.apple.quarantine /Applications/AgentPulse.app
 ```
 
-ログイン時に自動で起動したい場合は、システム設定 → 一般 → ログイン項目 に追加してください。
+ログイン時に自動で起動したい場合は、パネルの **設定… → 起動 → ログイン時に起動** をオンにしてください。
 
 ### 使い方
 

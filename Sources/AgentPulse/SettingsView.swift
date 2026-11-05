@@ -15,9 +15,31 @@ struct SettingsView: View {
     @AppStorage(SettingsKey.activityWindowMinutes) private var windowMinutes: Double = 10
 
     @ObservedObject private var appearance = Appearance.shared
+    @ObservedObject private var loginItem = LoginItem.shared
 
     var body: some View {
         Form {
+            Section("起動") {
+                Toggle("ログイン時に起動", isOn: Binding(
+                    get: { loginItem.isEnabled || loginItem.needsApproval },
+                    set: { loginItem.set($0) }
+                ))
+                if loginItem.needsApproval {
+                    HStack {
+                        Text("システム設定の「ログイン項目」で AgentPulse を許可してください。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("開く…") { loginItem.openSystemSettings() }
+                    }
+                }
+                if let error = loginItem.lastError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+
             Section("外観") {
                 Picker("描画方式", selection: $appearance.renderer) {
                     Text("安定").tag("stable")

@@ -17,6 +17,8 @@ public enum SettingsKey {
     public static let glassTransparency = "appearance.glassTransparency"
     /// "stable" (an always-active material) or "liquid" (SwiftUI Liquid Glass).
     public static let glassRenderer = "appearance.glassRenderer"
+    /// Open AgentPulse when the user logs in (off by default for a downloaded app).
+    public static let launchAtLogin = "launchAtLogin"
 
     public static func showKey(for kind: ProviderKind) -> String {
         switch kind {
@@ -40,6 +42,7 @@ public enum SettingsKey {
             glassDensity: 0.0,
             glassTransparency: 0.4,
             glassRenderer: "stable",
+            launchAtLogin: false,
         ]
     }
 
