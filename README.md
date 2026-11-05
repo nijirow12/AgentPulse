@@ -103,6 +103,8 @@ All figures show **how much is used** (ChatGPT and others show what is *left*, s
 
 - For exact OpenCode Go figures, sign opencode in to OpenCode Console (`opencode auth login opencode`);
   otherwise AgentPulse estimates them from the local database.
+  If the opencode background service is not running (it stops with the opencode desktop app or a restart),
+  AgentPulse starts it with `opencode service start`.
 - The Claude API rate-limits quickly, so it is asked at most every 2 minutes, backing off up to 30 minutes
   (showing the last figures meanwhile).
 - When an API cannot be reached, Codex falls back to its session logs and OpenCode Go to the estimate, and says so.
@@ -240,6 +242,8 @@ xattr -dr com.apple.quarantine /Applications/AgentPulse.app
 
 - OpenCode Go の正確な値を出すには、opencode を OpenCode Console にサインインしておく必要があります
   （`opencode auth login opencode`）。未サインインのときは、ローカル DB の記録から推定した値を表示します。
+  opencode の常駐サービスが止まっているとき（デスクトップアプリの終了や再起動で止まります）は、
+  AgentPulse が `opencode service start` で起動します。
 - Claude の API は短時間に何度も呼ぶと制限されるため、問い合わせは 2 分に 1 回までにしています。
   制限を受けたときは最大 30 分まで間隔を空け、その間は前回の値を表示します。
 - API が使えないときは、Codex はセッションログ、OpenCode Go はローカル DB の推定に切り替え、その旨を表示します。

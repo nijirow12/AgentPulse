@@ -21,11 +21,15 @@ public enum Shell {
     public static func run(
         _ executable: String,
         _ arguments: [String] = [],
-        timeout: TimeInterval = 5
+        timeout: TimeInterval = 5,
+        environment: [String: String]? = nil
     ) -> ShellResult {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
+        if let environment {
+            process.environment = ProcessInfo.processInfo.environment.merging(environment) { $1 }
+        }
         process.standardInput = FileHandle.nullDevice
 
         let outPipe = Pipe()

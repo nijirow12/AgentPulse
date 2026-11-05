@@ -374,7 +374,7 @@ extension OpenCodeGoUsage {
         return windows.isEmpty ? .unavailable("利用枠が空でした") : .windows(windows)
     }
 
-    public static func fetchLive() async -> LiveResult {
+    public static func fetchLive(retryAfterStarting: Bool = true) async -> LiveResult {
         guard
             let data = try? Data(contentsOf: serviceFile),
             let service = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -394,9 +394,77 @@ extension OpenCodeGoUsage {
             guard (200...299).contains(status) else { return .unavailable("opencode サービスが HTTP \(status) を返しました") }
             return parse(limitsResponse: body)
         } catch {
-            return .unavailable("opencode サービスに接続できません")
+            // The service stops with the opencode desktop app or a restart; start it and ask again.
+            guard retryAfterStarting, startService() else {
+                return .unavailable("opencode サービスに接続できません")
+            }
+            try? await Task.sleep(for: .seconds(2))
+            return await fetchLive(retryAfterStarting: false)
         }
     }
+
+    // MARK: Starting the background service
+
+    /// opencode executables that can start the service, best first: the desktop app's bundled
+    /// CLI (newest), then the usual install locations, then nvm-installed copies.
+    static func opencodeExecutables(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> [String] {
+        let fm = FileManager.default
+        var candidates: [String] = []
+        let desktop = home.appending(path: "Library/Application Support/ai.opencode.desktop/cli")
+        if let versions = try? fm.contentsOfDirectory(atPath: desktop.path) {
+            for version in versions.sorted(by: { $0.compare($1, options: .numeric) == .orderedDescending }) {
+                candidates.append(desktop.appending(path: "\(version)/opencode-cli").path)
+            }
+        }
+        candidates += [
+            home.appending(path: ".opencode/bin/opencode").path,
+            "/opt/homebrew/bin/opencode",
+            "/usr/local/bin/opencode",
+        ]
+        let nvm = home.appending(path: ".nvm/versions/node")
+        if let nodes = try? fm.contentsOfDirectory(atPath: nvm.path) {
+            for node in nodes.sorted(by: { $0.compare($1, options: .numeric) == .orderedDescending }) {
+                candidates.append(nvm.appending(path: "\(node)/bin/opencode").path)
+            }
+        }
+        return candidates.filter { fm.isExecutableFile(atPath: $0) }
+    }
+
+    /// Runs `opencode service start`, at most once every 5 minutes so a Mac without opencode
+    /// (or with a broken install) is not hammered every refresh. Returns whether it succeeded.
+    static func startService(now: Date = Date()) -> Bool {
+        guard serviceStarts.claim(now: now, every: 300) else { return false }
+        for executable in opencodeExecutables() {
+            // nvm copies are Node scripts and need their own bin directory on PATH.
+            let bin = (executable as NSString).deletingLastPathComponent
+            let result = Shell.run(
+                executable, ["service", "start"],
+                timeout: 20,
+                environment: ["PATH": "\(bin):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"]
+            )
+            if result.succeeded { return true }
+        }
+        return false
+    }
+
+    private static let serviceStarts = Throttle()
+}
+
+/// Lets an action through at most once per interval.
+private final class Throttle: @unchecked Sendable {
+    private let lock = NSLock()
+    private var last: Date?
+
+    func claim(now: Date, every interval: TimeInterval) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if let last, now.timeIntervalSince(last) < interval { return false }
+        last = now
+        return true
+    }
+}
+
+extension OpenCodeGoUsage {
 
     /// Exact allowance when available, otherwise the local estimate with the reason noted.
     public static func fetch(limits: Limits) async -> ProviderUsage {
